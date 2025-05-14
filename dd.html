@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Finger Counter</title>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <style>
+    body { text-align: center; font-family: sans-serif; background-color: #111; color: white; }
+    video, canvas { border: 1px solid #ccc; border-radius: 10px; }
+  </style>
+</head>
+<body>
+  <h1>🖐️ Hand Detection - Finger Counter</h1>
+  <video class="input_video" width="640" height="480" autoplay></video>
+  <canvas class="output_canvas" width="640" height="480"></canvas>
+  <p id="fingerCount">🟡 Waiting...</p>
+
+  <script>
+    const videoElement = document.querySelector('.input_video');
+    const canvasElement = document.querySelector('.output_canvas');
+    const canvasCtx = canvasElement.getContext('2d');
+    const fingerText = document.getElementById('fingerCount');
+
+    const esp_ip = 'http://192.168.1.13'; // ← ضع IP الـ ESP32 هنا
+
+    const hands = new Hands({
+      locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+    });
+
+    hands.setOptions({
+      maxNumHands: 1,
+      modelComplexity: 1,
+      minDetectionConfidence: 0.7,
+      minTrackingConfidence: 0.7
+    });
+
+    hands.onResults(results => {
+      canvasCtx.save();
+      canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+      canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        const landmarks = results.multiHandLandmarks[0];
+        drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { color: '#0f0', lineWidth: 3 });
+        drawLandmarks(canvasCtx, landmarks, { color: '#f00', lineWidth: 2 });
+
+        const fingers = [
+          landmarks[4].x < landmarks[3].x,                     // Thumb
+          landmarks[8].y < landmarks[6].y,                     // Index
+          landmarks[12].y < landmarks[10].y,                   // Middle
+          landmarks[16].y < landmarks[14].y,                   // Ring
+          landmarks[20].y < landmarks[18].y                    // Pinky
+        ];
+
+        const count = fingers.filter(f => f).length;
+        fingerText.textContent = `🟢 Fingers up: ${count}`;
+
+        // إرسال إلى ESP32
+        fetch(`${esp_ip}/led?count=${count}`).catch(err => {
+          console.warn("ESP32 not reachable", err);
+        });
+      } else {
+        fingerText.textContent = "🟡 No hand detected";
+      }
+
+      canvasCtx.restore();
+    });
+
+    const camera = new Camera(videoElement, {
+      onFrame: async () => await hands.send({ image: videoElement }),
+      width: 640,
+      height: 480
+    });
+    camera.start();
+  </script>
+</body>
+</html>
