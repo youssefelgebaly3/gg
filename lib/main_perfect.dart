@@ -286,44 +286,14 @@ class _MotoLockHomePageState extends State<MotoLockHomePage>
             }
           }
 
-          // فرز حسب RSSI
+          // فرز حسب RSSI - طريقة مبسطة
           foundDevices.sort((a, b) {
             final ra = scanResults
-                .firstWhere(
-                  (r) => r.device.remoteId == a.remoteId,
-                  orElse: () => ScanResult(
-                    device: a,
-                    advertisementData: AdvertisementData(
-                      advName: '',
-                      txPowerLevel: 0,
-                      appearance: 0,
-                      connectable: true,
-                      manufacturerData: {},
-                      serviceData: {},
-                      serviceUuids: [],
-                    ),
-                    rssi: -100,
-                  ),
-                )
-                .rssi;
+                .where((r) => r.device.remoteId == a.remoteId)
+                .firstOrNull?.rssi ?? -100;
             final rb = scanResults
-                .firstWhere(
-                  (r) => r.device.remoteId == b.remoteId,
-                  orElse: () => ScanResult(
-                    device: b,
-                    advertisementData: AdvertisementData(
-                      advName: '',
-                      txPowerLevel: 0,
-                      appearance: 0,
-                      connectable: true,
-                      manufacturerData: {},
-                      serviceData: {},
-                      serviceUuids: [],
-                    ),
-                    rssi: -100,
-                  ),
-                )
-                .rssi;
+                .where((r) => r.device.remoteId == b.remoteId)
+                .firstOrNull?.rssi ?? -100;
             return rb.compareTo(ra);
           });
         });
